@@ -1,6 +1,7 @@
 from flask import Flask, request, Response
 import json
 import os
+import requests
 
 app = Flask(__name__)
 
@@ -47,7 +48,6 @@ def vk_callback():
 
 
 def send_message(user_id, message):
-    import requests
     access_token = os.environ.get('ACCESS_TOKEN')
 
     payload = {
@@ -58,8 +58,9 @@ def send_message(user_id, message):
         'v': '5.131'
     }
 
+    print(f"➡️ Отправка сообщения с параметрами: {payload}")
     response = requests.post('https://api.vk.com/method/messages.send', params=payload)
-    print(f"➡️ Отправка сообщения пользователю {user_id}. Ответ VK: {response.text}")
+    print(f"📬 Ответ VK API: {response.status_code} — {response.text}")
 
 
 if __name__ == '__main__':
