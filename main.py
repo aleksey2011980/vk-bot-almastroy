@@ -13,22 +13,19 @@ SECRET_KEY = 'alma123secret'
 GROUP_ID = '70382509'
 
 # Этапы анкеты
-steps = {
-    1: (
-        "Здравствуйте!\n"
-        "Мы занимаемся строительством и ремонтом в Анапе и Анапском районе.\n"
-        "Напишите, пожалуйста:\n"
-        "— Ваше имя\n"
-        "— Телефон\n"
-        "— Район или адрес\n"
-        "— Что нужно: ремонт, строительство, смета?\n"
-    )
-}
+WELCOME_FORM = (
+    "Здравствуйте!\n"
+    "Мы занимаемся строительством и ремонтом в Анапе и Анапском районе.\n"
+    "Напишите, пожалуйста:\n"
+    "— Ваше имя\n"
+    "— Телефон\n"
+    "— Район или адрес\n"
+    "— Что нужно: ремонт, строительство, смета?\n"
+)
 
 FINAL_MESSAGE = "Спасибо! Мы вам ответим в ближайшее время."
-user_steps = {}
-user_data = {}
-last_response_time = {}
+user_last_time = {}
+user_asked = {}
 
 @app.route('/', methods=['POST'])
 def vk_callback():
@@ -46,21 +43,24 @@ def vk_callback():
         message_text = data['object']['message'].get('text', '').strip()
         now = time.time()
 
-        # Если прошло менее 10 минут с последнего ответа — игнорируем
-        if user_id in last_response_time and now - last_response_time[user_id] < 600:
+        # Игнорируем, если менее 10 минут с последнего ответа
+        if user_id in user_last_time and now - user_last_time[user_id] < 600:
             print(f"⏳ Менее 10 минут с последнего ответа пользователю {user_id}, пропускаем")
             return 'ok'
 
-        # Если в сообщении есть цифры (предположим, что это телефон)
-        if re.search(r'\d{5,}', message_text):
-            send_message(user_id, FINAL_MESSAGE)
-            last_response_time[user_id] = now
+        # Если пользователь ещё не получил форму
+        if user_id not in user_asked:
+            send_message(user_id, WELCOME_FORM)
+            user_last_time[user_id] = now
+            user_asked[user_id] = True
             return 'ok'
 
-        # Первый вход — отправляем форму
-        send_message(user_id, steps[1])
-        last_response_time[user_id] = now
-        return 'ok'
+        # Если сообщение содержит цифры (похоже на телефон)
+        if re.search(r'\d{5,}', message_text):
+            send_message(user_id, FINAL_MESSAGE)
+            user_last_time[user_id] = now
+            user_asked.pop(user_id, None)  # Обнуляем для возможности повторного цикла через 10 минут
+            return 'ok'
 
     return 'ok'
 
@@ -74,7 +74,7 @@ def send_message(user_id, message):
         'v': '5.131'
     }
     response = requests.post('https://api.vk.com/method/messages.send', params=payload)
-    print(f"📬 Ответ VK API: {response.status_code} — {response.text}")
+    print(f"\U0001f4ec Ответ VK API: {response.status_code} — {response.text}")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
