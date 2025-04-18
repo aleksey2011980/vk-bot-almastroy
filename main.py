@@ -51,7 +51,7 @@ def send_message(user_id, message):
         'message': message,
         'random_id': 0,
         'access_token': access_token,
-        'v': '5.131'
+        'v': '5.199'
     }
 
     requests.post('https://api.vk.com/method/messages.send', params=payload)
