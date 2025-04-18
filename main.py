@@ -2,6 +2,7 @@ from flask import Flask, request, Response
 import json
 import os
 import requests
+import time
 
 app = Flask(__name__)
 
@@ -10,7 +11,7 @@ CONFIRMATION_TOKEN = '112293f8'
 SECRET_KEY = 'alma123secret'
 GROUP_ID = '70382509'
 
-# Приветственное сообщение
+# Сообщения
 WELCOME_MESSAGE = (
     "Здравствуйте!\n"
     "Мы занимаемся строительством и ремонтом в Анапе и Анапском районе.\n"
@@ -21,6 +22,11 @@ WELCOME_MESSAGE = (
     "— Что нужно: ремонт, строительство, смета?\n\n"
     "Наши сайты: https://almastroi.ru | https://luxury-house.site"
 )
+
+DEFAULT_REPLY = "Спасибо! Мы вам ответим в ближайшее время."
+
+# Словарь последних ответов
+last_response_time = {}
 
 @app.route('/', methods=['POST'])
 def vk_callback():
@@ -41,11 +47,19 @@ def vk_callback():
     elif data['type'] == 'message_new':
         user_id = data['object']['message']['from_id']
         text = data['object']['message'].get('text', '').lower()
+        now = time.time()
         print(f"📩 Новое сообщение от пользователя: {user_id} — {text}")
 
-        # Ответ только если ключевые слова найдены
-        if any(keyword in text for keyword in ["ремонт", "смета", "строительство"]):
-            send_message(user_id, WELCOME_MESSAGE)
+        # Проверка на таймер 10 минут
+        last_time = last_response_time.get(user_id, 0)
+        if now - last_time >= 600:
+            if any(keyword in text for keyword in ["ремонт", "смета", "строительство"]):
+                send_message(user_id, WELCOME_MESSAGE)
+            else:
+                send_message(user_id, DEFAULT_REPLY)
+            last_response_time[user_id] = now
+        else:
+            print(f"⏳ Сообщение от пользователя {user_id} проигнорировано — менее 10 минут с последнего ответа")
 
         return 'ok'
 
