@@ -15,12 +15,18 @@ GROUP_ID = '70382509'
 # Этапы анкеты
 WELCOME_FORM = (
     "Здравствуйте!\n"
-    "Мы занимаемся строительством и ремонтом в Анапе и Анапском районе.\n"
-    "Напишите, пожалуйста:\n"
-    "— Ваше имя\n"
-    "— Телефон\n"
+    "Мы занимаемся строительством и ремонтом в Анапе и Анапском районе.\n\n"
+    "Пожалуйста, отправьте нам данные для связи (обязательно):\n"
+    "— Ваше имя (обязательно)\n"
+    "— Телефон (обязательно)\n"
     "— Район или адрес\n"
-    "— Что нужно: ремонт, строительство, смета?\n"
+    "— Что нужно: ремонт, строительство, смета?\n\n"
+    "Мы ответим вам в ближайшее время!"
+)
+
+MISSING_DATA_MESSAGE = (
+    "Пожалуйста, укажите имя и номер телефона, чтобы мы могли с вами связаться.\n"
+    "Это необходимо для обработки заявки."
 )
 
 FINAL_MESSAGE = "Спасибо! Мы вам ответим в ближайшее время."
@@ -58,11 +64,18 @@ def vk_callback():
             user_thanked[user_id] = False
             return 'ok'
 
-        # Если сообщение содержит цифры (похоже на телефон) и ещё не отправили спасибо
-        if re.search(r'\d{5,}', message_text) and not user_thanked.get(user_id, False):
+        # Проверка, указано ли имя и телефон
+        has_phone = bool(re.search(r'\d{5,}', message_text))
+        has_name = bool(re.search(r'[А-Яа-яA-Za-z]{2,}', message_text))
+
+        if has_phone and has_name and not user_thanked.get(user_id, False):
             send_message(user_id, FINAL_MESSAGE)
             user_last_time[user_id] = now
             user_thanked[user_id] = True
+            return 'ok'
+
+        if (has_phone or has_name) and not (has_phone and has_name):
+            send_message(user_id, MISSING_DATA_MESSAGE)
             return 'ok'
 
     return 'ok'
@@ -82,4 +95,3 @@ def send_message(user_id, message):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
-
