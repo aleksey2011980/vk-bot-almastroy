@@ -24,18 +24,22 @@ WELCOME_MESSAGE = (
 @app.route('/', methods=['POST'])
 def vk_callback():
     data = json.loads(request.data)
+    print(f"Получен запрос: {data}")
 
     # Проверка секретного ключа
     if 'secret' in data and data['secret'] != SECRET_KEY:
+        print("❌ Неверный секретный ключ")
         return 'invalid secret'
 
     # Подтверждение сервера
     if data['type'] == 'confirmation':
+        print("✅ Подтверждение сервера")
         return Response(CONFIRMATION_TOKEN, content_type='text/plain')
 
     # Обработка новых сообщений
     elif data['type'] == 'message_new':
         user_id = data['object']['message']['from_id']
+        print(f"📩 Новое сообщение от пользователя: {user_id}")
         send_message(user_id, WELCOME_MESSAGE)
         return 'ok'
 
@@ -54,7 +58,8 @@ def send_message(user_id, message):
         'v': '5.131'
     }
 
-    requests.post('https://api.vk.com/method/messages.send', params=payload)
+    response = requests.post('https://api.vk.com/method/messages.send', params=payload)
+    print(f"➡️ Отправка сообщения пользователю {user_id}. Ответ VK: {response.text}")
 
 
 if __name__ == '__main__':
