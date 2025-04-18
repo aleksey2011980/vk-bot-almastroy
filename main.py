@@ -40,12 +40,16 @@ def vk_callback():
     # Обработка новых сообщений
     elif data['type'] == 'message_new':
         user_id = data['object']['message']['from_id']
-        print(f"📩 Новое сообщение от пользователя: {user_id}")
-        send_message(user_id, WELCOME_MESSAGE)
+        text = data['object']['message'].get('text', '').lower()
+        print(f"📩 Новое сообщение от пользователя: {user_id} — {text}")
+
+        # Ответ только если ключевые слова найдены
+        if any(keyword in text for keyword in ["ремонт", "смета", "строительство"]):
+            send_message(user_id, WELCOME_MESSAGE)
+
         return 'ok'
 
     return 'ok'
-
 
 def send_message(user_id, message):
     access_token = os.environ.get('ACCESS_TOKEN')
@@ -61,7 +65,6 @@ def send_message(user_id, message):
     print(f"➡️ Отправка сообщения с параметрами: {payload}")
     response = requests.post('https://api.vk.com/method/messages.send', params=payload)
     print(f"📬 Ответ VK API: {response.status_code} — {response.text}")
-
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
