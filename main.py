@@ -45,10 +45,10 @@ def vk_callback():
         message_text = data['object']['message'].get('text', '').strip()
         now = time.time()
 
-        # Игнорируем, если менее 10 минут с последнего ответа
-        if user_id in user_last_time and now - user_last_time[user_id] < 600:
-            print(f"⏳ Менее 10 минут с последнего ответа пользователю {user_id}, пропускаем")
-            return 'ok'
+        # Если прошло больше 10 минут — сбрасываем статус анкеты
+        if user_id in user_last_time and now - user_last_time[user_id] >= 600:
+            user_asked.pop(user_id, None)
+            user_thanked.pop(user_id, None)
 
         # Если пользователь ещё не получил форму
         if user_id not in user_asked:
@@ -62,7 +62,6 @@ def vk_callback():
         if re.search(r'\d{5,}', message_text) and not user_thanked.get(user_id, False):
             send_message(user_id, FINAL_MESSAGE)
             user_last_time[user_id] = now
-            user_asked.pop(user_id, None)
             user_thanked[user_id] = True
             return 'ok'
 
@@ -83,3 +82,4 @@ def send_message(user_id, message):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
+
