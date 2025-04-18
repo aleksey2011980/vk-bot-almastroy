@@ -24,8 +24,10 @@ WELCOME_FORM = (
 )
 
 FINAL_MESSAGE = "Спасибо! Мы вам ответим в ближайшее время."
+
 user_last_time = {}
 user_asked = {}
+user_thanked = {}
 
 @app.route('/', methods=['POST'])
 def vk_callback():
@@ -53,13 +55,15 @@ def vk_callback():
             send_message(user_id, WELCOME_FORM)
             user_last_time[user_id] = now
             user_asked[user_id] = True
+            user_thanked[user_id] = False
             return 'ok'
 
-        # Если сообщение содержит цифры (похоже на телефон)
-        if re.search(r'\d{5,}', message_text):
+        # Если сообщение содержит цифры (похоже на телефон) и ещё не отправили спасибо
+        if re.search(r'\d{5,}', message_text) and not user_thanked.get(user_id, False):
             send_message(user_id, FINAL_MESSAGE)
             user_last_time[user_id] = now
-            user_asked.pop(user_id, None)  # Обнуляем для возможности повторного цикла через 10 минут
+            user_asked.pop(user_id, None)
+            user_thanked[user_id] = True
             return 'ok'
 
     return 'ok'
