@@ -44,7 +44,7 @@ def vk_callback():
 
 def send_message(user_id, message):
     import requests
-    access_token = 'ВАШ_ACCESS_TOKEN'
+    access_token = os.environ.get('ACCESS_TOKEN')
 
     payload = {
         'user_id': user_id,
