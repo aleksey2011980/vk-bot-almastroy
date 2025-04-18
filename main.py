@@ -3,6 +3,7 @@ import json
 import os
 import requests
 import time
+import re
 
 app = Flask(__name__)
 
@@ -11,21 +12,17 @@ CONFIRMATION_TOKEN = '112293f8'
 SECRET_KEY = 'alma123secret'
 GROUP_ID = '70382509'
 
-# Сообщения
-WELCOME_MESSAGE = (
-    "Здравствуйте!\n"
-    "Мы занимаемся строительством и ремонтом в Анапе и Анапском районе.\n"
-    "Напишите, пожалуйста:\n"
-    "— Ваше имя\n"
-    "— Телефон\n"
-    "— Район или адрес\n"
-    "— Что нужно: ремонт, строительство, смета?\n\n"
-    "Наши сайты: https://almastroi.ru | https://luxury-house.site"
-)
+# Этапы анкеты
+steps = {
+    1: "Как вас зовут?",
+    2: "Укажите, пожалуйста, ваш номер телефона.",
+    3: "Уточните район или адрес.",
+    4: "Что нужно: ремонт, строительство, смета?"
+}
 
-DEFAULT_REPLY = "Спасибо! Мы вам ответим в ближайшее время."
-
-# Словарь последних ответов
+FINAL_MESSAGE = "Спасибо! Мы вам ответим в ближайшее время."
+user_steps = {}
+user_data = {}
 last_response_time = {}
 
 @app.route('/', methods=['POST'])
@@ -35,31 +32,35 @@ def vk_callback():
 
     # Проверка секретного ключа
     if 'secret' in data and data['secret'] != SECRET_KEY:
-        print("❌ Неверный секретный ключ")
         return 'invalid secret'
 
     # Подтверждение сервера
     if data['type'] == 'confirmation':
-        print("✅ Подтверждение сервера")
         return Response(CONFIRMATION_TOKEN, content_type='text/plain')
 
     # Обработка новых сообщений
     elif data['type'] == 'message_new':
         user_id = data['object']['message']['from_id']
-        text = data['object']['message'].get('text', '').lower()
+        message_text = data['object']['message'].get('text', '').strip()
         now = time.time()
-        print(f"📩 Новое сообщение от пользователя: {user_id} — {text}")
 
-        # Проверка на таймер 10 минут
+        # Проверка таймера 10 минут
         last_time = last_response_time.get(user_id, 0)
-        if now - last_time >= 600:
-            if any(keyword in text for keyword in ["ремонт", "смета", "строительство"]):
-                send_message(user_id, WELCOME_MESSAGE)
-            else:
-                send_message(user_id, DEFAULT_REPLY)
+        if now - last_time < 600:
+            print(f"⏳ Менее 10 минут с последнего ответа пользователю {user_id}, пропускаем")
+            return 'ok'
+
+        # Если в сообщении есть цифры (телефон), отправляем финальное сообщение
+        if re.search(r'\d{5,}', message_text):
+            send_message(user_id, FINAL_MESSAGE)
             last_response_time[user_id] = now
-        else:
-            print(f"⏳ Сообщение от пользователя {user_id} проигнорировано — менее 10 минут с последнего ответа")
+            return 'ok'
+
+        # Сброс состояния анкеты и начало заново с вопроса "Как вас зовут?"
+        user_steps[user_id] = 1
+        user_data[user_id] = {}
+        last_response_time[user_id] = now
+        send_message(user_id, steps[1])
 
         return 'ok'
 
@@ -67,7 +68,6 @@ def vk_callback():
 
 def send_message(user_id, message):
     access_token = os.environ.get('ACCESS_TOKEN')
-
     payload = {
         'user_id': user_id,
         'message': message,
@@ -75,8 +75,6 @@ def send_message(user_id, message):
         'access_token': access_token,
         'v': '5.131'
     }
-
-    print(f"➡️ Отправка сообщения с параметрами: {payload}")
     response = requests.post('https://api.vk.com/method/messages.send', params=payload)
     print(f"📬 Ответ VK API: {response.status_code} — {response.text}")
 
